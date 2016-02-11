@@ -70,7 +70,7 @@ def getImage():
 def signal_handler(signal, frame):
     global exiting
 
-    print ("exiting")
+    print("exiting")
 
     exiting = True
     thread.join()
@@ -81,6 +81,8 @@ def signal_handler(signal, frame):
 
     # Close the camera
     camera.close()
+
+    time.sleep(0.25)
 
     sys.exit(0)
 
