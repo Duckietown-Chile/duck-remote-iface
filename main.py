@@ -18,6 +18,7 @@ rightMotor = motorhat.getMotor(2)
 
 # Create camera object
 camera = picamera.PiCamera()
+camera.resolution = (640, 480)
 
 # Numpy array of shape (rows, columns, colors)
 imgArray = picamera.array.PiRGBArray(camera)
@@ -25,12 +26,24 @@ imgArray = picamera.array.PiRGBArray(camera)
 
 
 startTime = time.time()
+frameItr = camera.capture_continuous(imgArray, format='rgb', use_video_port=True)
+
 for i in range(0, 100):
-    camera.capture(imgArray, 'rgb')
-    print(imgArray.shape)
+
+    # Clear the image array between captures
+    imgArray.truncate(0)
+    next(frameItr)
+
+
+
+    print(imgArray.array.shape)
+
+    print(mean)
+
+
 endTime = time.time()
 
-frameRate = 100 / (endTime - startTime)
+fps = 100 / (endTime - startTime)
 print('fps: %s' % fps)
 
 
