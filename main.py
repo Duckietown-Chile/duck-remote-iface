@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import threading
 import signal
 import sys
 import time
@@ -20,11 +21,12 @@ rightMotor = motorhat.getMotor(2)
 # Create camera object
 camera = picamera.PiCamera()
 camera.resolution = CAMERA_RES
+camera.framerate = 10
 
 # Numpy array of shape (rows, columns, colors)
 imgArray = picamera.array.PiRGBArray(camera)
 
-frameItr = camera.capture_continuous(imgArray, format='rgb', use_video_port=True)
+frameItr = camera.capture_continuous(imgArray, format='bgr', use_video_port=True)
 
 def setMotors(lSpeed, rSpeed):
     lSpeed = max(-255, min(255, int(lSpeed * 255)))
@@ -44,14 +46,20 @@ def setMotors(lSpeed, rSpeed):
         rightMotor.run(Adafruit_MotorHAT.BACKWARD)
         rightMotor.setSpeed(-rSpeed)
 
-def getImage():
-    print('capturing frame')
+exiting = False
+lastImg = None
 
+def camWorker():
+    global exiting
+    global lastImg
+    while not exiting:
+        lastImg = getImage()
+    print('camera thread exiting')
+
+def getImage():
     # Clear the image array between captures
     imgArray.truncate(0)
     next(frameItr)
-
-    print('captured image')
 
     img = imgArray.array
 
@@ -60,7 +68,12 @@ def getImage():
     return img
 
 def signal_handler(signal, frame):
+    global exiting
+
     print ("exiting")
+
+    exiting = True
+    thread.join()
 
     # Stop the motors
     leftMotor.run(Adafruit_MotorHAT.RELEASE)
@@ -80,6 +93,10 @@ print('Starting server at %s' % serverAddr)
 context = zmq.Context()
 socket = context.socket(zmq.PAIR)
 socket.bind(serverAddr)
+
+# Start a new thread for the camera
+thread = threading.Thread(target=camWorker)
+thread.start()
 
 def sendArray(socket, array):
     """Send a numpy array with metadata over zmq"""
@@ -116,10 +133,8 @@ def handle_message(msg):
     else:
         assert False, "unknown command"
 
-    img = getImage()
-
     print('sending image')
-    sendArray(socket, img)
+    sendArray(socket, lastImg)
     print('sent image')
 
 for message in poll_socket(socket):
