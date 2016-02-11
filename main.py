@@ -27,8 +27,8 @@ imgArray = picamera.array.PiRGBArray(camera)
 frameItr = camera.capture_continuous(imgArray, format='rgb', use_video_port=True)
 
 def setMotors(lSpeed, rSpeed):
-    lSpeed = max(-255, min(255, lSpeed * 255))
-    rSpeed = max(-255, min(255, rSpeed * 255))
+    lSpeed = max(-255, min(255, int(lSpeed * 255)))
+    rSpeed = max(-255, min(255, int(rSpeed * 255)))
 
     if lSpeed > 0:
         leftMotor.run(Adafruit_MotorHAT.FORWARD)
@@ -45,15 +45,15 @@ def setMotors(lSpeed, rSpeed):
         rightMotor.setSpeed(-rSpeed)
 
 def getImage():
+    print('capturing frame')
+
     # Clear the image array between captures
     imgArray.truncate(0)
     next(frameItr)
 
-    img = imgArray.array
+    print('captured image')
 
-    # Do this on the client, if necessary
-    # BGR to RGB
-    #img = img[:, :, ::-1]
+    img = imgArray.array
 
     img = np.ascontiguousarray(img, dtype=np.uint8)
 
@@ -81,6 +81,16 @@ context = zmq.Context()
 socket = context.socket(zmq.PAIR)
 socket.bind(serverAddr)
 
+def sendArray(socket, array):
+    """Send a numpy array with metadata over zmq"""
+    md = dict(
+        dtype=str(array.dtype),
+        shape=array.shape,
+    )
+    # SNDMORE flag specifies this is a multi-part message
+    socket.send_json(md, flags=zmq.SNDMORE)
+    return socket.send(array, flags=0, copy=True, track=False)
+
 def poll_socket(socket, timetick = 10):
     poller = zmq.Poller()
     poller.register(socket, zmq.POLLIN)
@@ -106,7 +116,7 @@ def handle_message(msg):
     else:
         assert False, "unknown command"
 
-    img = getFrame()
+    img = getImage()
 
     print('sending image')
     sendArray(socket, img)
