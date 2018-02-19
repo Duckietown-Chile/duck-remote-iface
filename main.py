@@ -4,14 +4,13 @@ import signal
 import sys
 import time
 import zmq
-
 import numpy as np
-
 import picamera
 import picamera.array
-#from picamera.array import PiRGBArray
-
 from Adafruit_MotorHAT import Adafruit_MotorHAT
+
+SERVER_PORT = 7777
+CAMERA_RES = (640, 480)
 
 # Create a default object, no changes to I2C address or frequency
 motorhat = Adafruit_MotorHAT(addr=0x60)
@@ -20,7 +19,7 @@ rightMotor = motorhat.getMotor(2)
 
 # Create camera object
 camera = picamera.PiCamera()
-camera.resolution = (640, 480)
+camera.resolution = CAMERA_RES
 
 # Numpy array of shape (rows, columns, colors)
 imgArray = picamera.array.PiRGBArray(camera)
