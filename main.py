@@ -63,6 +63,10 @@ def getImage():
 
     img = imgArray.array
 
+    # Drop some rows and columns to downsize the image
+    # Full image size is 1.2MB, which can be slow to stream over wifi
+    img = img[0:480:4, 0:640:4]
+    
     img = np.ascontiguousarray(img, dtype=np.uint8)
 
     return img
