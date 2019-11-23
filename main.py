@@ -8,15 +8,18 @@ import zmq
 import numpy as np
 import picamera
 import picamera.array
-from Adafruit_MotorHAT import Adafruit_MotorHAT
+from duckiebot_driver.serial_interface import DuckietownSerial
+from duckiebot_driver.message import DuckietownCommand
 
 SERVER_PORT = 7777
 CAMERA_RES = (640, 480)
 
+PORT = '/dev/ttyS0'
+BAUDRATE = 57600
+
 # Create a default object, no changes to I2C address or frequency
-motorhat = Adafruit_MotorHAT(addr=0x60)
-leftMotor = motorhat.getMotor(1)
-rightMotor = motorhat.getMotor(2)
+motordriver=DuckietownSerial(PORT, BAUDRATE)
+cmd = DuckietownCommand()
 
 # Create camera object
 camera = picamera.PiCamera()
@@ -29,22 +32,18 @@ imgArray = picamera.array.PiRGBArray(camera)
 frameItr = camera.capture_continuous(imgArray, format='bgr', use_video_port=True)
 
 def setMotors(lSpeed, rSpeed):
-    lSpeed = max(-255, min(255, int(lSpeed * 255)))
-    rSpeed = max(-255, min(255, int(rSpeed * 255)))
+    lSpeed = min(max(lSpeed,-1.0),1.0)
+    rSpeed = min(max(rSpeed,-1.0),1.0)
 
     if lSpeed > 0:
-        leftMotor.run(Adafruit_MotorHAT.FORWARD)
-        leftMotor.setSpeed(lSpeed)
+        cmd.pwm_ch1 = 255 - int(254*lSpeed)
     else:
-        leftMotor.run(Adafruit_MotorHAT.BACKWARD)
-        leftMotor.setSpeed(-lSpeed)
-
+        cmd.pwm_ch1 = int(255*lSpeed)
     if rSpeed > 0:
-        rightMotor.run(Adafruit_MotorHAT.FORWARD)
-        rightMotor.setSpeed(rSpeed)
+        cmd.pwm_ch2 = 255 - int(254*rSpeed)
     else:
-        rightMotor.run(Adafruit_MotorHAT.BACKWARD)
-        rightMotor.setSpeed(-rSpeed)
+        cmd.pwm_ch2 = int(255*rSpeed)
+    driver.send_command(self.cmd)
 
 exiting = False
 lastImg = None
@@ -80,9 +79,10 @@ def signal_handler(signal, frame):
     thread.join()
 
     # Stop the motors
-    leftMotor.run(Adafruit_MotorHAT.RELEASE)
-    rightMotor.run(Adafruit_MotorHAT.RELEASE)
-
+    cmd.pwm_ch1 = 0
+    cmd.pwm_ch2 = 0
+    driver.send_command(cmd)
+    
     # Close the camera
     camera.close()
 
